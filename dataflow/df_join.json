@@ -10,12 +10,25 @@
 						"type": "DatasetReference"
 					},
 					"name": "movies1"
+				},
+				{
+					"dataset": {
+						"referenceName": "moviesdb_ds",
+						"type": "DatasetReference"
+					},
+					"name": "moviesdb"
 				}
 			],
 			"sinks": [],
 			"transformations": [
 				{
 					"name": "moviesclean"
+				},
+				{
+					"name": "joinmovies"
+				},
+				{
+					"name": "select1"
 				}
 			],
 			"scriptLines": [
@@ -27,7 +40,35 @@
 				"     allowSchemaDrift: false,",
 				"     validateSchema: false,",
 				"     ignoreNoFilesFound: false) ~> movies1",
-				"movies1 derive(titlenew = toString(left(title,length(title)-6))) ~> moviesclean"
+				"source(output(",
+				"          movie as string,",
+				"          title as string,",
+				"          genres as string,",
+				"          year as string,",
+				"          Rating as string,",
+				"          RottenTomato as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> moviesdb",
+				"movies1 derive(titlenew = toString(left(title,length(title)-6))) ~> moviesclean",
+				"moviesclean, moviesdb join(titlenew == moviesdb@title,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinmovies",
+				"joinmovies select(mapColumn(",
+				"          movieId,",
+				"          title = movies1@title,",
+				"          genres = movies1@genres,",
+				"          movie,",
+				"          genres = moviesdb@genres,",
+				"          year,",
+				"          Rating,",
+				"          RottenTomato",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1"
 			]
 		}
 	}
