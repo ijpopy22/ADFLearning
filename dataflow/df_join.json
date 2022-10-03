@@ -3,11 +3,31 @@
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
-			"sources": [],
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "movies_ds1",
+						"type": "DatasetReference"
+					},
+					"name": "movies1"
+				}
+			],
 			"sinks": [],
-			"transformations": [],
+			"transformations": [
+				{
+					"name": "moviesclean"
+				}
+			],
 			"scriptLines": [
-				""
+				"source(output(",
+				"          movieId as string,",
+				"          title as string,",
+				"          genres as string",
+				"     ),",
+				"     allowSchemaDrift: false,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> movies1",
+				"movies1 derive(titlenew = toString(left(title,length(title)-6))) ~> moviesclean"
 			]
 		}
 	}
