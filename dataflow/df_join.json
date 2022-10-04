@@ -85,7 +85,8 @@
 				"     validateSchema: false,",
 				"     partitionFileNames:['MoviesOutPut'],",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> MoviesOP"
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> MoviesOP"
 			]
 		}
 	}
