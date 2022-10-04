@@ -25,7 +25,11 @@
 						"referenceName": "moviesOpCSV",
 						"type": "DatasetReference"
 					},
-					"name": "MoviesOP"
+					"name": "MoviesOP",
+					"rejectedDataLinkedService": {
+						"referenceName": "LS_BLOB_Learning777",
+						"type": "LinkedServiceReference"
+					}
 				}
 			],
 			"transformations": [
