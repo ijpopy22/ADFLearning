@@ -3,11 +3,51 @@
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
-			"sources": [],
-			"sinks": [],
-			"transformations": [],
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "movies_ds1",
+						"type": "DatasetReference"
+					},
+					"name": "Moviesv1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "moviesOpCSV",
+						"type": "DatasetReference"
+					},
+					"name": "MoviesClean",
+					"rejectedDataLinkedService": {
+						"referenceName": "LS_BLOB_Learning777",
+						"type": "LinkedServiceReference"
+					}
+				}
+			],
+			"transformations": [
+				{
+					"name": "ExtractYearTitle"
+				}
+			],
 			"scriptLines": [
-				""
+				"source(output(",
+				"          movieId as string,",
+				"          title as string,",
+				"          genres as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> Moviesv1",
+				"Moviesv1 derive(Year = toInteger(trim(right(title,6),'()')),",
+				"          title = toString(left(title,length(title)-6))\r",
+				") ~> ExtractYearTitle",
+				"ExtractYearTitle sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     partitionFileNames:['MoviesClean.csv'],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> MoviesClean"
 			]
 		}
 	}
