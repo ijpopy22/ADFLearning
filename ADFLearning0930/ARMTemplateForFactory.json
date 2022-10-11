@@ -604,7 +604,7 @@
 						"     partitionBy('hash', 1)) ~> MoviesClean",
 						"RatingByYear sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
-						"     partitionFileNames:['MovieSCountByYear'],",
+						"     partitionFileNames:['MovieSCountByYear.csv'],",
 						"     skipDuplicateMapInputs: true,",
 						"     skipDuplicateMapOutputs: true,",
 						"     partitionBy('hash', 1)) ~> MoviesCountByYear"
