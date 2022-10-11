@@ -270,6 +270,91 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ListTables')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_SQL_ADFL",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_SQL_ADFL')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SqlTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_SQL_ADFL",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"table_name": {
+						"type": "string"
+					},
+					"schemaName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "Cars"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_SQL_ADFL')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/GenericCSV')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_BLOB_Learning777",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"FileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"container": "output"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_BLOB_Learning777')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PL_MOVE_CSV_SQLDB')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -339,6 +424,84 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/Input_Cars')]",
 				"[concat(variables('factoryId'), '/datasets/tb_cars')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_agg_derive')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "movies_ds1",
+								"type": "DatasetReference"
+							},
+							"name": "Moviesv1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "moviesOpCSV",
+								"type": "DatasetReference"
+							},
+							"name": "MoviesClean",
+							"rejectedDataLinkedService": {
+								"referenceName": "LS_BLOB_Learning777",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"dataset": {
+								"referenceName": "moviesOpCSV",
+								"type": "DatasetReference"
+							},
+							"name": "MoviesCountByYear"
+						}
+					],
+					"transformations": [
+						{
+							"name": "ExtractYearTitle"
+						},
+						{
+							"name": "RatingByYear"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          movieId as string,",
+						"          title as string,",
+						"          genres as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> Moviesv1",
+						"Moviesv1 derive(Year = toInteger(trim(right(title,6),'()')),",
+						"          title = toString(left(title,length(title)-6))) ~> ExtractYearTitle",
+						"ExtractYearTitle aggregate(groupBy(Year),",
+						"     MoviesCnt = count(Year)) ~> RatingByYear",
+						"ExtractYearTitle sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['MoviesClean.csv'],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> MoviesClean",
+						"RatingByYear sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['MovieSCountByYear.csv'],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> MoviesCountByYear"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/movies_ds1')]",
+				"[concat(variables('factoryId'), '/datasets/moviesOpCSV')]",
+				"[concat(variables('factoryId'), '/linkedServices/LS_BLOB_Learning777')]"
 			]
 		},
 		{
@@ -443,82 +606,139 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/df_agg_derive')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
+			"name": "[concat(parameters('factoryName'), '/pl_Lookup_forEach')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "movies_ds1",
-								"type": "DatasetReference"
+				"activities": [
+					{
+						"name": "GetTables",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT\n*\nFROM\nADFT.INFORMATION_SCHEMA.TABLES\nWHERE table_type = 'BASE TABLE'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
 							},
-							"name": "Moviesv1"
+							"dataset": {
+								"referenceName": "ListTables",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
 						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "moviesOpCSV",
-								"type": "DatasetReference"
-							},
-							"name": "MoviesClean",
-							"rejectedDataLinkedService": {
-								"referenceName": "LS_BLOB_Learning777",
-								"type": "LinkedServiceReference"
+					},
+					{
+						"name": "ForEach1",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetTables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
-						},
-						{
-							"dataset": {
-								"referenceName": "moviesOpCSV",
-								"type": "DatasetReference"
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetTables').output.value",
+								"type": "Expression"
 							},
-							"name": "MoviesCountByYear"
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "ExportCSV",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "SqlTable",
+											"type": "DatasetReference",
+											"parameters": {
+												"table_name": {
+													"value": "@item().table_name",
+													"type": "Expression"
+												},
+												"schemaName": {
+													"value": "@item().table_schema",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "GenericCSV",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@concat(item().table_schema,'_',item().table_name,'.csv')",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
 						}
-					],
-					"transformations": [
-						{
-							"name": "ExtractYearTitle"
-						},
-						{
-							"name": "RatingByYear"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          movieId as string,",
-						"          title as string,",
-						"          genres as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> Moviesv1",
-						"Moviesv1 derive(Year = toInteger(trim(right(title,6),'()')),",
-						"          title = toString(left(title,length(title)-6))\r",
-						") ~> ExtractYearTitle",
-						"ExtractYearTitle aggregate(groupBy(Year),",
-						"     MoviesCnt = count(Year)) ~> RatingByYear",
-						"ExtractYearTitle sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     partitionFileNames:['MoviesClean.csv'],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     partitionBy('hash', 1)) ~> MoviesClean",
-						"RatingByYear sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     partitionFileNames:['MovieSCountByYear.csv'],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     partitionBy('hash', 1)) ~> MoviesCountByYear"
-					]
-				}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/movies_ds1')]",
-				"[concat(variables('factoryId'), '/datasets/moviesOpCSV')]",
-				"[concat(variables('factoryId'), '/linkedServices/LS_BLOB_Learning777')]"
+				"[concat(variables('factoryId'), '/datasets/ListTables')]",
+				"[concat(variables('factoryId'), '/datasets/SqlTable')]",
+				"[concat(variables('factoryId'), '/datasets/GenericCSV')]"
 			]
 		},
 		{
@@ -651,8 +871,7 @@
 								"coreCount": 32,
 								"computeType": "MemoryOptimized"
 							},
-							"traceLevel": "Fine",
-							"runConcurrently": false
+							"traceLevel": "Fine"
 						}
 					}
 				],
