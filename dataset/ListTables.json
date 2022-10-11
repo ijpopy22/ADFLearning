@@ -1,0 +1,12 @@
+{
+	"name": "ListTables",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_SQL_ADFL",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": []
+	}
+}
