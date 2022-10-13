@@ -20,7 +20,11 @@
 				}
 			],
 			"sinks": [],
-			"transformations": [],
+			"transformations": [
+				{
+					"name": "CreateHashKey"
+				}
+			],
 			"scriptLines": [
 				"source(output(",
 				"          CustomerID as integer,",
@@ -56,7 +60,8 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     format: 'table') ~> CustomerDim"
+				"     format: 'table') ~> CustomerDim",
+				"CustomerSource derive(Hashkey = sha2(256, iifNull(Title,'')+iifNull(FirstName, '')+iifNull(MiddleName, '')+iifNull(LastName, '')+ iifNull(Suffix, '')+iifNull(CompanyName, '')+iifNull(SalesPerson, '')+iifNull(EmailAddress, '')+iifNull(Phone, ''))) ~> CreateHashKey"
 			]
 		}
 	}
