@@ -19,10 +19,30 @@
 					"name": "CustomerDim"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "CustomerDim",
+						"type": "DatasetReference"
+					},
+					"name": "sinkTarget"
+				}
+			],
 			"transformations": [
 				{
 					"name": "CreateHashKey"
+				},
+				{
+					"name": "Exist"
+				},
+				{
+					"name": "LookupCustomerID"
+				},
+				{
+					"name": "SetDates"
+				},
+				{
+					"name": "Upsert"
 				}
 			],
 			"scriptLines": [
@@ -61,7 +81,42 @@
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> CustomerDim",
-				"CustomerSource derive(Hashkey = sha2(256, iifNull(Title,'')+iifNull(FirstName, '')+iifNull(MiddleName, '')+iifNull(LastName, '')+ iifNull(Suffix, '')+iifNull(CompanyName, '')+iifNull(SalesPerson, '')+iifNull(EmailAddress, '')+iifNull(Phone, ''))) ~> CreateHashKey"
+				"CustomerSource derive(Hashkey = sha2(256, iifNull(Title,'')+iifNull(FirstName, '')+iifNull(MiddleName, '')+iifNull(LastName, '')+ iifNull(Suffix, '')+iifNull(CompanyName, '')+iifNull(SalesPerson, '')+iifNull(EmailAddress, '')+iifNull(Phone, ''))) ~> CreateHashKey",
+				"CreateHashKey, CustomerDim exists(CreateHashKey@Hashkey == CustomerDim@HashKey,",
+				"     negate:true,",
+				"     broadcast: 'auto')~> Exist",
+				"Exist, CustomerDim lookup(CustomerSource@CustomerID == CustomerDim@CustomerID,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> LookupCustomerID",
+				"LookupCustomerID derive(InsertedDate = iif(isNull(InsertedDate), currentTimestamp(), InsertedDate),",
+				"          ModifiedDate = currentTimestamp()) ~> SetDates",
+				"SetDates alterRow(upsertIf(true())) ~> Upsert",
+				"Upsert sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          CustomerID as integer,",
+				"          Title as string,",
+				"          FirstName as string,",
+				"          MiddleName as string,",
+				"          LastName as string,",
+				"          Suffix as string,",
+				"          CompanyName as string,",
+				"          SalesPerson as string,",
+				"          EmailAddress as string,",
+				"          Phone as string,",
+				"          InsertedDate as timestamp,",
+				"          ModifiedDate as timestamp,",
+				"          HashKey as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sinkTarget"
 			]
 		}
 	}
